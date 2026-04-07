@@ -48,18 +48,21 @@ public class Main extends ApplicationAdapter {
         batch = new SpriteBatch();
         viewport = new FitViewport(800, 480);
 
-        // fondo con rayas verticales para que se vea que se mueve
-        Pixmap bgPixmap = new Pixmap(1024, 512, Pixmap.Format.RGB888);
-        bgPixmap.setColor(new Color(0.2f, 0.6f, 0.9f, 1f));
-        bgPixmap.fill();
-        bgPixmap.setColor(new Color(0.1f, 0.4f, 0.6f, 1f));
+        // fondo tipo tablero grande para evitar artefactos al movernos mucho
+        Pixmap bgPixmap = new Pixmap(4096, 4096, Pixmap.Format.RGB888);
+        Color lightSquare = new Color(0.2f, 0.6f, 0.9f, 1f);
+        Color darkSquare = new Color(0.1f, 0.4f, 0.6f, 1f);
+        int squareSize = 100;
 
-        for (int i = 0; i < 20; i++) {
-            bgPixmap.fillRectangle(i * 60, 0, 30, 512);
+        for (int y = 0; y < bgPixmap.getHeight(); y += squareSize) {
+            for (int x = 0; x < bgPixmap.getWidth(); x += squareSize) {
+                boolean useLightSquare = ((x / squareSize) + (y / squareSize)) % 2 == 0;
+                bgPixmap.setColor(useLightSquare ? lightSquare : darkSquare);
+                bgPixmap.fillRectangle(x, y, squareSize, squareSize);
+            }
         }
-
         background = new Texture(bgPixmap);
-        background.setWrap(Texture.TextureWrap.MirroredRepeat, Texture.TextureWrap.MirroredRepeat);
+        background.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
         bgRegion = new TextureRegion(background);
         bgPixmap.dispose();
 
@@ -142,15 +145,21 @@ public class Main extends ApplicationAdapter {
             facing = FACE_DOWN;
         }
 
-        // mover player y fondo (el fondo va mas lento para el efecto)
+        // mover player y fondo (parallax en horizontal y vertical)
         posx += moveX * speed * delta;
         posy += moveY * speed * delta;
         bgx += moveX * speed * delta * 0.5f;
-        bgy += moveY * speed * delta * 0.5f;
+        bgy -= moveY * speed * delta * 0.5f;
 
+
+        // mantenemos los offsets dentro de la textura para que el patron no se rompa
+        float wrappedBgX = bgx % background.getWidth();
+        float wrappedBgY = bgy % background.getHeight();
+        if (wrappedBgX < 0) wrappedBgX += background.getWidth();
+        if (wrappedBgY < 0) wrappedBgY += background.getHeight();
 
         // movemos la ventana del fondo para dar sensacion de scroll
-        bgRegion.setRegion((int) bgx, (int) bgy, (int) viewport.getWorldWidth(), (int) viewport.getWorldHeight());
+        bgRegion.setRegion((int) wrappedBgX, (int) wrappedBgY, (int) viewport.getWorldWidth(), (int) viewport.getWorldHeight());
 
 
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
